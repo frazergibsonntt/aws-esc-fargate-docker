@@ -33,13 +33,11 @@ jobs:
           context: .
           push: true
           tags: frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}
-
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  run:
-    working-directory: terraform
+          
   plan_deploy:
+    defaults:
+      run:
+        working-directory: terraform
     runs-on: ubuntu-latest
     environment: 'deploy'
     steps:
@@ -90,6 +88,9 @@ jobs:
         terraform apply -input=false -no-color tfplan 
 
   destroy:
+    defaults:
+      run:
+        working-directory: terraform
     needs: plan_deploy
     runs-on: ubuntu-latest
     environment: 'destroy'
