@@ -34,8 +34,108 @@ jobs:
           push: true
           tags: frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}
 
-    # - name: Build the Docker image
-    #   run: docker build . --file Dockerfile --tag chamodshehanka/node-test:$(date +%s)
-      
-    # - name: Docker Push
-    #   run: docker push chamodshehanka/node-test
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  run:
+    working-directory: terraform
+  plan_deploy:
+    runs-on: ubuntu-latest
+    environment: 'deploy'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        path: ${{ github.workspace }}
+
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_wrapper: false # This is recommended so the `terraform show` command outputs valid JSON
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+
+    - name: Terraform fmt
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+
+    - name: Terraform init
+      run: |
+        terraform init -no-color -force-copy -input=false -upgrade=true -backend=true \
+          -backend-config="bucket=${{ secrets.BACKEND_S3_BUCKET }}" \
+          -backend-config="key=tf-${{ secrets.BACKEND_S3_BUCKET }}.tfstate" \
+          -backend-config="region=${{ secrets.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ secrets.BACKEND_DYNAMO_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform validate
+      id: validate
+      run: terraform validate -no-color
+
+    - name: Terraform plan
+      id: plan
+      run: |
+        terraform plan -out=tfplan \
+          -var="image=frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}"
+
+    - name: Terraform apply
+      id: apply
+      run: |
+        terraform apply -input=false -no-color tfplan 
+
+  destroy:
+    needs: plan_deploy
+    runs-on: ubuntu-latest
+    environment: 'destroy'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        path: ${{ github.workspace }}
+
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_wrapper: false # This is recommended so the `terraform show` command outputs valid JSON
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+
+    - name: Terraform fmt
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+
+    - name: Terraform init
+      run: |
+        terraform init -no-color -force-copy -input=false -upgrade=true -backend=true \
+          -backend-config="bucket=${{ secrets.BACKEND_S3_BUCKET }}" \
+          -backend-config="key=tf-${{ secrets.BACKEND_S3_BUCKET }}.tfstate" \
+          -backend-config="region=${{ secrets.AWS_REGION }}" \
+          -backend-config="dynamodb_table=${{ secrets.BACKEND_DYNAMO_TABLE }}" \
+          -backend-config="encrypt=true"
+
+    - name: Terraform validate
+      id: validate
+      run: terraform validate -no-color
+
+    - name: Terraform plan
+      id: plan
+      run: |
+        terraform plan -destroy -out=tfplan \
+          -var="image=frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}"
+
+    - name: Terraform destroy
+      id: destroy
+      run: |
+        terraform apply --destroy -input=false -no-color -input=false tfplan 
