@@ -32,4 +32,10 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ github.event.inputs.tag }}
+          tags: frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}
+
+    # - name: Build the Docker image
+    #   run: docker build . --file Dockerfile --tag chamodshehanka/node-test:$(date +%s)
+      
+    # - name: Docker Push
+    #   run: docker push chamodshehanka/node-test
