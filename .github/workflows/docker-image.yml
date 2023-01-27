@@ -38,6 +38,7 @@ jobs:
     defaults:
       run:
         working-directory: terraform
+    needs: push_to_registry
     runs-on: ubuntu-latest
     environment: 'deploy'
     steps:
