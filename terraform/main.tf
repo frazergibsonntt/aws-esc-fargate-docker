@@ -182,7 +182,7 @@ resource "aws_iam_role" "ecsTaskExecutionRole" {
   name               = "ecs-fargate-execution-task-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
   tags = {
-    Name        = "ecs-fargate"
+    Name = "ecs-fargate"
   }
 }
 
@@ -226,8 +226,8 @@ resource "aws_ecs_task_definition" "ecs-fargate" {
       logConfiguration = {
         logDriver = "awslogs",
         options = {
-          awslogs-group = "ecs-fargate",
-          awslogs-region = "${var.region}",
+          awslogs-group         = "ecs-fargate",
+          awslogs-region        = "${var.region}",
           awslogs-stream-prefix = "ecs"
         }
       }
