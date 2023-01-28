@@ -76,7 +76,7 @@ terraform init -no-color -force-copy -input=false -upgrade=true -backend=true \
 ### Plan
 
 ```bash
-terraform plan -out=tfplan 
+terraform plan -out=tfplan -var="image=frazergibsonntt/aws-esc-fargate-docker:0.0.2"
 ```
 
 ### Apply
@@ -108,3 +108,6 @@ docker run --rm -it \
     --entrypoint "/bin/bash" \
     python:3
 ```
+
+
+Don't build image on Mac M1: https://stackoverflow.com/questions/67361936/exec-user-process-caused-exec-format-error-in-aws-fargate-service
