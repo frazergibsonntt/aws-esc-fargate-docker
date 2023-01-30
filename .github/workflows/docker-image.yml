@@ -25,14 +25,14 @@ jobs:
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
-          images: frazergibsonntt/aws-esc-fargate-docker
+          images: ${{ secrets.DOCKER_REPO }}
       
       - name: Build and push Docker image
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           push: true
-          tags: frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}
+          tags: ${{ secrets.DOCKER_REPO }}:${{ github.event.inputs.tag }}
           
   plan_deploy:
     defaults:
@@ -81,7 +81,7 @@ jobs:
       id: plan
       run: |
         terraform plan -out=tfplan \
-          -var="image=frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}"
+          -var="image=${{ secrets.DOCKER_REPO }}:${{ github.event.inputs.tag }}"
 
     - name: Terraform apply
       id: apply
@@ -135,7 +135,7 @@ jobs:
       id: plan
       run: |
         terraform plan -destroy -out=tfplan \
-          -var="image=frazergibsonntt/aws-esc-fargate-docker:${{ github.event.inputs.tag }}"
+          -var="image=${{ secrets.DOCKER_REPO }}:${{ github.event.inputs.tag }}"
 
     - name: Terraform destroy
       id: destroy

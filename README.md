@@ -1,30 +1,5 @@
 # Hello, World! (Deployed on ECS Fargate)
 
-## Installing requirements
-
-Requires Python 3.8 or later.
-
-The requirements can then be installed using pip:
-
-```
-python3.8 -m pip install -r requirements.txt
-```
-
-## Running the app
-
-```
-uvicorn hello.main:app
-```
-
-The app will listen on port 8000.
-
-http://127.0.0.1:8000
-
-The greeting can be configured with an query parameter:
-
-http://127.0.0.1:8000/?name=Dave
-
-
 Terraform code to deploy and serve and application running on ECS Fargate.
 
 ## Architecture
@@ -49,34 +24,65 @@ The Terraform code includes the following resources:
 | ECS Capacity Provider | Capacity providers defines which underlying infrastructure should be used.
 | ECS Service | Collection of ECS tasks.
 | Fargate Task | Defines the containers and allocated resources.
+| CloudWatch | Our ECS tasks are configured to push logs to CloudWatch |
+
+## Building and deploying the image with GitHub Actions
+
+1. Fork this repo
+2. Set up your [S3/DynamoDB backend](https://developer.hashicorp.com/terraform/language/settings/backends/s3) 
+3. Set the following secrets in Settings/Security/Secrets and variables/Actions:
+
+| Variable | Description |
+| ------------- |-------------|
+| AWS_ACCESS_KEY_ID | access key for your AWS account |
+| AWS_SECRET_ACCESS_KEY | secret access key for your AWS account |
+| AWS_REGION | The AWS region to deploy your resources |
+| BACKEND_DYNAMO_TABLE | dynamodb table to use for the backend|
+| BACKEND_S3_BUCKET | S3 bucket to use for the backend |
+| DOCKER_USERNAME | Username for authenticating to Docker Hub |
+| DOCKER_PASSWORD | Password to authenticating to Docker Hub |
+| DOCKER_REPO | Docker repository to push and pull images to/from e.g frazergibsonntt/aws-esc-fargate-docker |
+
+4. Create a deploy and destroy environments (Settings/Code and automation/Environments). Tick the Required reviewer box and add yourself as the reviewer.
+5. Navigate to Actions/Publish Docker image. Then Run workflow, leave the branch as main and type a tag to pass to the new image. This will trigger the pipeline.
+6. Select the pipeline from the list. After the Push Docker image to Docker stage has run, click Review deployments, tick the box and then click Approve and deploy. This will deploy the the image on ECS Fargate.
 
 
 ##  Deploying from the command line
 
 Use the commands below to deploy the infrastructure using the command line. Update the init command with your own backend configuration.
 
-### CD into terraform directory
+[Don't build image on Mac M1](https://stackoverflow.com/questions/67361936/exec-user-process-caused-exec-format-error-in-aws-fargate-service) 
 
+Dependencies: aws cli, Terraform, Docker
+
+Build the image:
 ```bash
+docker build . -t <docker repo>:<image>
+docker push <docker repo>:<image>
+```
+
+Deploy the terraform
+```bash
+aws configure
 cd terraform
-export AWS_PROFILE=personal
 ```
 
 ### Init
 
 ```bash
 terraform init -no-color -force-copy -input=false -upgrade=true -backend=true \
-  -backend-config="bucket=terraform-states-oxkycy" \
-  -backend-config="key=tf-terraform-states-oxkycy.tfstate" \
-  -backend-config="region=eu-west-2" \
-  -backend-config="dynamodb_table=terraform-states" \
+  -backend-config="bucket=<BACKEND_S3_BUCKET>" \
+  -backend-config="key=< state file name >.tfstate" \ # tf-${{ BACKEND_S3_BUCKET }}.tfstate in the pipeline
+  -backend-config="region=<AWS_REGION>" \
+  -backend-config="dynamodb_table=<BACKEND_DYNAMO_TABLE>" \
   -backend-config="encrypt=true"
 ```
 
 ### Plan
 
 ```bash
-terraform plan -out=tfplan -var="image=frazergibsonntt/aws-esc-fargate-docker:0.0.2"
+terraform plan -out=tfplan -var="image=<docker repo>:<image>"
 ```
 
 ### Apply
@@ -92,22 +98,54 @@ terraform plan -destroy -out=tfplan && \
 terraform apply -destroy -input=false -no-color tfplan 
 ```
 
-## Notes
 
+## Testing
+### Docker
+Useful commands for testing the Docker image locally
+
+Run an image:
 ```bash
-docker build . -t hello
-docker run --rm -it  -p 8000:8000/tcp hello:latest
-curl http://127.0.0.1:8000/?name=Dave
+docker run --rm -it  -p 8000:8000/tcp <docker repo>:<image>
+```
 
+Run the image, but change the entrypoint and mount the pwd:
+```bash
 docker run --rm -it \
     --name test-pod \
     --network host \
     -p 8000:8000/tcp \
     -v $(pwd):/app \
     -w /app \
-    --entrypoint "/bin/bash" \
-    python:3
+    --entrypoint "/bin/sh" \
+    <docker repo>:<image>
+```
+The app will listen on port 8000.
+
+http://127.0.0.1:8000
+
+The greeting can be configured with an query parameter:
+
+http://127.0.0.1:8000/?name=Dave
+
+### CLI
+Useful commands for testing locally from the cli
+
+Requires Python 3.8 or later. The requirements can then be installed using pip:
+```
+python3.8 -m pip install -r requirements.txt
 ```
 
+Running the app:
 
-Don't build image on Mac M1: https://stackoverflow.com/questions/67361936/exec-user-process-caused-exec-format-error-in-aws-fargate-service
+```
+uvicorn hello.main:app
+```
+
+The app will listen on port 8000.
+
+http://127.0.0.1:8000
+
+The greeting can be configured with an query parameter:
+
+http://127.0.0.1:8000/?name=Dave
+
